@@ -75,8 +75,8 @@ export default function TennisLadderDemo() {
       {/* HEADER */}
       <header className="max-w-xl mx-auto mb-10 flex justify-between items-end">
         <div>
-          <p className="text-lime-400 font-black text-[10px] tracking-[0.3em] mb-1">AMATEUR PRO SERIES</p>
-          <h1 className="text-6xl font-black italic leading-none tracking-tighter">THE<br/>LADDER</h1>
+          <p className="text-lime-400 font-black text-[10px] tracking-[0.3em] mb-1" PRO SERIES</p>
+          <h1 className="text-6xl font-black italic leading-none tracking-tighter">RTAbr/>TENIS</h1>
         </div>
         <Trophy className="text-zinc-800" size={60} />
       </header>
