@@ -126,3 +126,110 @@ export default function RTATennisApp() {
               <button onClick={handleLogout} className="flex items-center gap-2 bg-zinc-900 px-3 py-1.5 rounded-full border border-white/5">
                 <span className="text-[7px] text-zinc-500 font-black">{activeUser.name}</span>
                 <LogOut size={12} className="text-lime-400" />
+              </button>
+              <div className="flex flex-col gap-1.5 items-end">
+                {retos.map(r => (
+                  <div key={r.id} className="bg-lime-400 text-black px-3 py-1 rounded-xl flex items-center gap-2 shadow-lg animate-pulse text-[9px] font-black uppercase italic">
+                    <Activity size={10} /> {r.retadorName} VS {r.rivalName}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </header>
+
+          {/* TOP 3 - TODOS PUEDEN SER RETADOS AQUÍ */}
+          <div className="grid gap-4 mb-10">
+            {sortedPlayers.slice(0, 3).map((p, i) => {
+              const tieneReto = retos.some(r => r.retadorId === p.id || r.rivalId === p.id);
+              return (
+                <div key={p.id} className={`relative p-8 rounded-[40px] border-2 transition-all ${i === 0 ? 'border-yellow-500 bg-yellow-500/5' : i === 1 ? 'border-zinc-400 bg-zinc-400/5' : 'border-orange-700 bg-orange-700/5'}`}>
+                  <div className="flex justify-between items-center relative z-10">
+                    <div className="flex items-center gap-6">
+                      <span className="text-7xl font-black italic opacity-20 leading-none">{i+1}</span>
+                      <div>
+                        <h3 className="text-3xl font-black leading-tight flex items-center gap-2">
+                          {p.name} <span className="text-2xl grayscale-0">{p.icon}</span>
+                        </h3>
+                        <p className="text-lime-400 font-mono text-xs mt-1 tracking-widest">{p.points} PTS • {p.wins}W / {p.losses}L</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      {p.streak >= 3 && <Flame className="text-orange-500 fill-orange-500 animate-pulse mb-2" size={32} />}
+                      {activeUser.id !== p.id && !tieneReto && !retos.some(r => r.retadorId === activeUser.id || r.rivalId === activeUser.id) && (
+                        <button onClick={() => crearReto(p)} className="bg-white text-black px-4 py-2 rounded-xl font-black text-[10px] tracking-widest hover:bg-lime-400 transition-all uppercase">Retar</button>
+                      )}
+                      {tieneReto && <span className="text-[8px] font-black text-zinc-500 tracking-widest">IN GAME</span>}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* RESTO DE LA LISTA */}
+          <div className="space-y-2 mb-8 bg-zinc-900/30 p-4 rounded-[32px] border border-white/5">
+            <h2 className="text-[9px] font-black tracking-[0.4em] text-zinc-600 mb-4 px-2 uppercase italic underline decoration-lime-500/50 underline-offset-8">Aspirantes</h2>
+            {currentPlayers.map((p) => {
+              const globalIndex = sortedPlayers.findIndex(sp => sp.id === p.id);
+              if (globalIndex < 3) return null;
+              const tieneReto = retos.some(r => r.retadorId === p.id || r.rivalId === p.id);
+              
+              return (
+                <div key={p.id} className="p-4 rounded-2xl bg-black/40 border border-white/5 flex justify-between items-center group hover:border-lime-400 transition-all duration-300">
+                  <div className="flex items-center gap-4">
+                    <span className="text-xl font-black italic text-zinc-700 w-6">#{globalIndex + 1}</span>
+                    <div>
+                      <h4 className="text-sm font-bold">{p.name} {p.icon}</h4>
+                      <p className="text-[10px] text-zinc-500 font-mono italic">{p.points} PTS</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {activeUser.id !== p.id && !tieneReto && !retos.some(r => r.retadorId === activeUser.id || r.rivalId === activeUser.id) && (
+                      <button onClick={() => crearReto(p)} className="bg-white text-black px-3 py-1.5 rounded-lg font-black text-[8px] tracking-widest hover:bg-lime-400 transition-all opacity-0 group-hover:opacity-100 uppercase">Retar</button>
+                    )}
+                    {tieneReto && <span className="text-[7px] font-black text-zinc-700 uppercase">En Juego</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* PAGINACIÓN */}
+          <div className="flex justify-center items-center gap-6 mb-16">
+            <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="p-2 disabled:opacity-20 hover:text-lime-400"><ChevronLeft/></button>
+            <span className="text-[10px] font-black tracking-widest text-zinc-500 uppercase">Pág. {currentPage} / {totalPages}</span>
+            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="p-2 disabled:opacity-20 hover:text-lime-400"><ChevronRight/></button>
+          </div>
+
+          {/* ADMIN CENTER */}
+          {activeUser.email === adminEmail && (
+            <section className="bg-zinc-950 border-2 border-lime-400/20 rounded-[40px] p-8 shadow-2xl">
+              <button onClick={() => setShowAdmin(!showAdmin)} className="w-full flex justify-between items-center text-[9px] font-black tracking-[0.3em]">
+                <span className="flex items-center gap-2 uppercase italic"><ShieldCheck size={14} className="text-lime-400"/> Comisionado</span>
+                {showAdmin ? 'CERRAR' : 'ABRIR'}
+              </button>
+              {showAdmin && (
+                <div className="mt-8 space-y-6">
+                  <input type="password" placeholder="CLAVE CHINO123" className="w-full bg-black p-4 rounded-xl border border-white/5 text-xs text-center font-bold tracking-widest outline-none focus:border-lime-400" onChange={(e) => setAdminPass(e.target.value)} />
+                  {retos.length === 0 ? (
+                    <p className="text-center text-[8px] text-zinc-700 font-black tracking-widest uppercase italic">Esperando partidos...</p>
+                  ) : (
+                    retos.map(r => (
+                      <div key={r.id} className="p-6 bg-zinc-900 rounded-3xl space-y-4 border border-white/5">
+                        <p className="text-[10px] font-black text-center text-zinc-500 tracking-widest uppercase italic border-b border-white/5 pb-2">{r.retadorName} VS {r.rivalName}</p>
+                        <div className="grid grid-cols-3 gap-2">
+                          <input type="text" placeholder="S1" className="bg-black text-center p-3 rounded-lg text-xs font-bold border border-white/5 outline-none focus:border-lime-400" value={marcador.s1} onChange={e => setMarcador({...marcador, s1: e.target.value})} />
+                          <input type="text" placeholder="S2" className="bg-black text-center p-3 rounded-lg text-xs font-bold border border-white/5 outline-none focus:border-lime-400" value={marcador.s2} onChange={e => setMarcador({...marcador, s2: e.target.value})} />
+                          <input type="text" placeholder="TB" className="bg-black text-center p-3 rounded-lg text-xs font-bold border border-orange-500/30 outline-none focus:border-orange-500" value={marcador.s3} onChange={e => setMarcador({...marcador, s3: e.target.value})} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button onClick={() => resolverReto(r, r.retadorId)} className="py-4 bg-zinc-800 rounded-xl text-[9px] font-black hover:bg-lime-400 hover:text-black transition-all italic uppercase tracking-tighter">Ganó {r.retadorName}</button>
+                          <button onClick={() => resolverReto(r, r.rivalId)} className="py-4 bg-zinc-800 rounded-xl text-[9px] font-black hover:bg-lime-400 hover:text-black transition-all italic uppercase tracking-tighter">Ganó {r.rivalName}</button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </section>
+          )}
