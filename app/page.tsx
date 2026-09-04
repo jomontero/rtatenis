@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Trophy, Flame, ShieldCheck, Swords, LogOut, Mail, Lock, Calendar, Activity } from 'lucide-react';
+import { Trophy, Flame, ShieldCheck, Swords, LogOut, Calendar, Activity, History } from 'lucide-react';
 
 export default function RTATennisApp() {
   const adminEmail = "chino@gmail.com";
@@ -13,20 +13,24 @@ export default function RTATennisApp() {
 
   const [activeUser, setActiveUser] = useState(null);
   const [retos, setRetos] = useState([]);
+  const [historial, setHistorial] = useState([]);
   const [showAdmin, setShowAdmin] = useState(false);
   const [adminPass, setAdminPass] = useState("");
+  const [marcador, setMarcador] = useState({ s1: "", s2: "", s3: "" });
   const [mounted, setMounted] = useState(false);
   const [emailInput, setEmailInput] = useState("");
   const [passInput, setPassInput] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const savedPlayers = localStorage.getItem('rta-v6-players');
-    const savedRetos = localStorage.getItem('rta-v6-retos');
-    const savedSession = localStorage.getItem('rta-v6-session');
+    const savedPlayers = localStorage.getItem('rta-v7-players');
+    const savedRetos = localStorage.getItem('rta-v7-retos');
+    const savedHistorial = localStorage.getItem('rta-v7-historial');
+    const savedSession = localStorage.getItem('rta-v7-session');
     
     if (savedPlayers) setPlayers(JSON.parse(savedPlayers));
     if (savedRetos) setRetos(JSON.parse(savedRetos));
+    if (savedHistorial) setHistorial(JSON.parse(savedHistorial));
     if (savedSession) setActiveUser(JSON.parse(savedSession));
     
     setMounted(true);
@@ -34,51 +38,49 @@ export default function RTATennisApp() {
 
   useEffect(() => {
     if (mounted) {
-      localStorage.setItem('rta-v6-players', JSON.stringify(players));
-      localStorage.setItem('rta-v6-retos', JSON.stringify(retos));
-      if(activeUser) localStorage.setItem('rta-v6-session', JSON.stringify(activeUser));
+      localStorage.setItem('rta-v7-players', JSON.stringify(players));
+      localStorage.setItem('rta-v7-retos', JSON.stringify(retos));
+      localStorage.setItem('rta-v7-historial', JSON.stringify(historial));
+      if(activeUser) localStorage.setItem('rta-v7-session', JSON.stringify(activeUser));
     }
-  }, [players, retos, activeUser, mounted]);
+  }, [players, retos, historial, activeUser, mounted]);
 
   const handleLogin = (e) => {
     e.preventDefault();
     const userMatch = players.find(u => u.email === emailInput.toLowerCase() && passInput === "001122");
-    if (userMatch) {
-      setActiveUser(userMatch);
-      setError("");
-    } else {
-      setError("Credenciales incorrectas.");
-    }
+    if (userMatch) { setActiveUser(userMatch); setError(""); } 
+    else { setError("Credenciales incorrectas."); }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('rta-v6-session');
+    localStorage.removeItem('rta-v7-session');
     setActiveUser(null);
   };
 
   const crearReto = (rival) => {
-    const yaTieneReto = retos.some(r => 
-      r.retadorId === activeUser.id || r.rivalId === activeUser.id || 
-      r.retadorId === rival.id || r.rivalId === rival.id
-    );
-
-    if (yaTieneReto) return alert("Uno de los jugadores ya tiene un reto pendiente.");
+    const yaTieneReto = retos.some(r => r.retadorId === activeUser.id || r.rivalId === activeUser.id || r.retadorId === rival.id || r.rivalId === rival.id);
+    if (yaTieneReto) return alert("Uno de los jugadores ya está ocupado.");
 
     const nuevoReto = {
       id: Date.now(),
       retadorId: activeUser.id,
-      retadorName: activeUser.name.split(' ')[0], // Solo el primer nombre para ahorrar espacio
+      retadorName: activeUser.name.split(' ')[0],
       rivalId: rival.id,
       rivalName: rival.name.split(' ')[0],
-      fecha: new Date().toLocaleDateString()
     };
     setRetos([...retos, nuevoReto]);
-    alert(`Reto creado: ${activeUser.name} vs ${rival.name}`);
   };
 
   const resolverReto = (reto, ganadorId) => {
     if (adminPass !== "chino123") return alert("Clave incorrecta");
+    if (!marcador.s1 || !marcador.s2) return alert("Ingresa al menos los 2 primeros sets");
+
     const perdedorId = (ganadorId === reto.retadorId) ? reto.rivalId : reto.retadorId;
+    const gNombre = (ganadorId === reto.retadorId) ? reto.retadorName : reto.rivalName;
+    const pNombre = (ganadorId === reto.retadorId) ? reto.rivalName : reto.retadorName;
+
+    // Formatear marcador final
+    const marcadorFinal = `${marcador.s1} / ${marcador.s2} ${marcador.s3 ? '/ ' + marcador.s3 : ''}`;
 
     const newPlayers = players.map(p => {
       if (p.id === ganadorId) {
@@ -92,17 +94,17 @@ export default function RTATennisApp() {
     });
 
     setPlayers(newPlayers.sort((a, b) => b.points - a.points));
+    setHistorial([{ id: Date.now(), ganador: gNombre, perdedor: pNombre, score: marcadorFinal }, ...historial].slice(0, 5));
     setRetos(retos.filter(r => r.id !== reto.id));
+    setMarcador({ s1: "", s2: "", s3: "" });
     setShowAdmin(false);
   };
 
   if (!mounted) return null;
-
   const isAdmin = activeUser && (activeUser.email === adminEmail || activeUser.name === "Chino Montero");
 
   return (
     <div className="min-h-screen bg-black text-white p-4 md:p-10 font-sans italic tracking-tighter uppercase">
-      
       {!activeUser ? (
         <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center p-6 text-center">
           <Trophy size={60} className="text-lime-400 mb-4" />
@@ -110,65 +112,47 @@ export default function RTATennisApp() {
           <form onSubmit={handleLogin} className="w-full max-w-xs space-y-4">
             <input type="email" placeholder="EMAIL" required className="w-full bg-zinc-900 p-4 rounded-2xl border border-white/5 outline-none focus:border-lime-400 font-bold text-xs" value={emailInput} onChange={(e) => setEmailInput(e.target.value)} />
             <input type="password" placeholder="PASSWORD" required className="w-full bg-zinc-900 p-4 rounded-2xl border border-white/5 outline-none focus:border-lime-400 font-bold text-xs" value={passInput} onChange={(e) => setPassInput(e.target.value)} />
-            {error && <p className="text-red-500 text-[10px] font-black text-center">{error}</p>}
-            <button type="submit" className="w-full py-5 bg-lime-400 text-black rounded-2xl font-black text-sm tracking-widest uppercase">Entrar</button>
+            <button type="submit" className="w-full py-5 bg-lime-400 text-black rounded-2xl font-black text-sm tracking-widest">ENTRAR</button>
           </form>
         </div>
       ) : (
         <div className="max-w-xl mx-auto pb-20">
           
-          {/* HEADER CON RETOS ARRIBA A LA DERECHA */}
-          <header className="flex justify-between items-start mb-16 relative">
-            <div>
-              <h1 className="text-5xl font-black leading-[0.85] italic tracking-[0.05em]">RTA<br/>TENNIS<br/>RANKING</h1>
-            </div>
-            
-            <div className="flex flex-col items-end gap-3 max-w-[150px]">
-              {/* PERFIL */}
-              <button onClick={handleLogout} className="flex items-center gap-2 bg-zinc-900 px-3 py-1.5 rounded-full border border-white/5 whitespace-nowrap">
+          <header className="flex justify-between items-start mb-16">
+            <h1 className="text-5xl font-black leading-[0.85] italic tracking-tighter">RTA<br/>TENNIS<br/>RANKING</h1>
+            <div className="flex flex-col items-end gap-3">
+              <button onClick={handleLogout} className="flex items-center gap-2 bg-zinc-900 px-3 py-1.5 rounded-full border border-white/5">
                 <span className="text-[7px] text-zinc-500 font-black">{activeUser.name}</span>
                 <LogOut size={12} className="text-lime-400" />
               </button>
-
-              {/* SECCIÓN DE RETOS MINI (DERECHA) */}
-              <div className="flex flex-col gap-1.5 items-end w-full">
+              <div className="flex flex-col gap-1.5 items-end">
                 {retos.map(r => (
-                  <div key={r.id} className="bg-lime-400 text-black px-3 py-1.5 rounded-xl flex items-center gap-2 shadow-lg animate-pulse w-full justify-between">
-                    <Activity size={10} className="shrink-0" />
-                    <p className="text-[9px] font-black italic truncate leading-none">
-                      {r.retadorName} <span className="opacity-40">vs</span> {r.rivalName}
-                    </p>
+                  <div key={r.id} className="bg-lime-400 text-black px-3 py-1.5 rounded-xl flex items-center gap-2 shadow-lg animate-pulse">
+                    <Activity size={10} />
+                    <p className="text-[9px] font-black italic">{r.retadorName} VS {r.rivalName}</p>
                   </div>
                 ))}
-                {retos.length === 0 && <span className="text-[7px] text-zinc-800 font-black tracking-widest italic">NO LIVE MATCHES</span>}
               </div>
             </div>
           </header>
 
-          {/* RANKING PRINCIPAL */}
-          <div className="space-y-4 mb-20">
-            <div className="flex items-center gap-2 mb-6 border-b border-white/5 pb-2">
-              <Trophy size={14} className="text-zinc-600" />
-              <h2 className="text-[10px] font-black tracking-[0.3em] text-zinc-600">OFFICIAL CLASSIFICATION</h2>
-            </div>
-            
+          {/* RANKING */}
+          <div className="space-y-4 mb-16">
+            <h2 className="text-[10px] font-black tracking-[0.3em] text-zinc-600 mb-4 uppercase">Clasificación Pro</h2>
             {players.map((p, i) => {
               const tieneReto = retos.some(r => r.retadorId === p.id || r.rivalId === p.id);
               return (
                 <div key={p.id} className={`p-6 rounded-[32px] border-2 transition-all duration-500 ${p.streak >= 3 ? 'border-orange-500 bg-orange-500/10' : 'border-white/5 bg-zinc-900/50'}`}>
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-4">
-                      <span className="text-5xl font-black italic opacity-10 leading-none">{i+1}</span>
+                      <span className="text-5xl font-black italic opacity-10">{i+1}</span>
                       <div>
                         <h3 className="text-2xl font-bold leading-none">{p.name} {p.streak >= 3 && '🔥'}</h3>
-                        <p className="text-lime-400 font-mono text-[10px] mt-1.5 tracking-widest">{p.points} PTS</p>
+                        <p className="text-lime-400 font-mono text-[10px] mt-1.5">{p.points} PTS | W:{p.wins} L:{p.losses}</p>
                       </div>
                     </div>
                     {activeUser.id !== p.id && !tieneReto && !retos.some(r => r.retadorId === activeUser.id || r.rivalId === activeUser.id) && (
-                      <button onClick={() => crearReto(p)} className="bg-white text-black px-4 py-2 rounded-xl font-black text-[9px] tracking-widest hover:bg-lime-400 transition-all">RETAR</button>
-                    )}
-                    {tieneReto && (
-                      <span className="text-[7px] font-black text-zinc-700 bg-white/5 px-2 py-1 rounded tracking-[0.2em]">IN GAME</span>
+                      <button onClick={() => crearReto(p)} className="bg-white text-black px-4 py-2 rounded-xl font-black text-[9px] hover:bg-lime-400 transition-all">RETAR</button>
                     )}
                   </div>
                 </div>
@@ -176,37 +160,50 @@ export default function RTATennisApp() {
             })}
           </div>
 
-          {/* PANEL COMISIONADO: RESOLUCIÓN DE RETOS */}
+          {/* HISTORIAL */}
+          {historial.length > 0 && (
+            <section className="mb-16">
+              <h2 className="text-[10px] font-black tracking-[0.3em] text-zinc-600 mb-6 flex items-center gap-2"><History size={14}/> Resultados Recientes</h2>
+              <div className="space-y-3">
+                {historial.map(h => (
+                  <div key={h.id} className="bg-zinc-900/30 border border-white/5 p-4 rounded-2xl flex justify-between items-center">
+                    <div>
+                      <p className="text-xs font-black italic text-white uppercase"><span className="text-lime-400">WIN:</span> {h.ganador}</p>
+                      <p className="text-[10px] text-zinc-500 font-bold uppercase">vs {h.perdedor}</p>
+                    </div>
+                    <p className="text-xs font-mono font-black text-lime-400">{h.score}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* PANEL COMISIONADO */}
           {isAdmin && (
             <section className="bg-zinc-900 border-2 border-lime-400/30 rounded-[40px] p-8 shadow-2xl">
-              <button onClick={() => setShowAdmin(!showAdmin)} className="w-full flex justify-between items-center text-[9px] font-black tracking-[0.2em]">
-                <span className="flex items-center gap-2 uppercase"><ShieldCheck size={14} className="text-lime-400"/> Admin Center</span>
-                {showAdmin ? 'CLOSE' : 'EXPAND'}
+              <button onClick={() => setShowAdmin(!showAdmin)} className="w-full flex justify-between items-center text-[9px] font-black tracking-[0.2em] uppercase">
+                <span className="flex items-center gap-2"><ShieldCheck size={14} className="text-lime-400"/> Registrar Marcador</span>
+                {showAdmin ? 'CERRAR' : 'ABRIR'}
               </button>
               
               {showAdmin && (
-                <div className="mt-6 pt-6 border-t border-white/5">
-                  <input type="password" placeholder="CHINO KEY" className="w-full bg-black p-4 rounded-xl mb-6 border border-zinc-800 text-xs text-center font-bold tracking-widest" onChange={(e) => setAdminPass(e.target.value)} />
+                <div className="mt-6 pt-6 border-t border-white/5 space-y-6">
+                  <input type="password" placeholder="CLAVE CHINO123" className="w-full bg-black p-4 rounded-xl border border-zinc-800 text-xs text-center font-bold tracking-widest" onChange={(e) => setAdminPass(e.target.value)} />
                   
-                  {retos.length === 0 ? (
-                    <p className="text-center text-zinc-600 text-[8px] font-black tracking-[0.4em]">NO PENDING SETS</p>
-                  ) : (
-                    <div className="space-y-4">
-                      {retos.map(r => (
-                        <div key={r.id} className="border border-white/5 p-5 rounded-2xl bg-black/40">
-                          <p className="text-[8px] text-zinc-500 font-black mb-4 tracking-[0.3em] text-center uppercase">Confirm Winner</p>
-                          <div className="grid grid-cols-2 gap-3">
-                            <button onClick={() => resolverReto(r, r.retadorId)} className="py-4 bg-zinc-900 rounded-xl text-[9px] font-black hover:bg-lime-400 hover:text-black transition-all">
-                              {r.retadorName.toUpperCase()}
-                            </button>
-                            <button onClick={() => resolverReto(r, r.rivalId)} className="py-4 bg-zinc-900 rounded-xl text-[9px] font-black hover:bg-lime-400 hover:text-black transition-all">
-                              {r.rivalName.toUpperCase()}
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                  {retos.map(r => (
+                    <div key={r.id} className="border border-white/5 p-5 rounded-3xl bg-black/40 space-y-4">
+                      <p className="text-[9px] text-center font-black text-zinc-500 tracking-widest">{r.retadorName} VS {r.rivalName}</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        <input type="text" placeholder="SET 1" className="bg-zinc-900 text-center p-3 rounded-xl text-xs font-bold border border-white/5" value={marcador.s1} onChange={e => setMarcador({...marcador, s1: e.target.value})} />
+                        <input type="text" placeholder="SET 2" className="bg-zinc-900 text-center p-3 rounded-xl text-xs font-bold border border-white/5" value={marcador.s2} onChange={e => setMarcador({...marcador, s2: e.target.value})} />
+                        <input type="text" placeholder="TB 3" className="bg-zinc-900 text-center p-3 rounded-xl text-xs font-bold border border-orange-500/30" value={marcador.s3} onChange={e => setMarcador({...marcador, s3: e.target.value})} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 mt-4">
+                        <button onClick={() => resolverReto(r, r.retadorId)} className="py-4 bg-zinc-800 rounded-xl text-[9px] font-black hover:bg-lime-400 hover:text-black transition-all italic">GANÓ {r.retadorName}</button>
+                        <button onClick={() => resolverReto(r, r.rivalId)} className="py-4 bg-zinc-800 rounded-xl text-[9px] font-black hover:bg-lime-400 hover:text-black transition-all italic">GANÓ {r.rivalName}</button>
+                      </div>
                     </div>
-                  )}
+                  ))}
                 </div>
               )}
             </section>
