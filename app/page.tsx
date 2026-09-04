@@ -1,16 +1,10 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Trophy, Flame, ShieldCheck, Swords, LogOut, Mail, Lock } from 'lucide-react';
+import { Trophy, Flame, ShieldCheck, Swords, LogOut, Mail, Lock, Calendar } from 'lucide-react';
 
 export default function RTATennisApp() {
-  // Datos maestros con correos
   const adminEmail = "chino@gmail.com";
-  const masterUsers = [
-    { id: 1, email: "rrojas@gmail.com", name: "Rolando Rojas" },
-    { id: 2, email: "puma@gmail.com", name: "El Puma" },
-    { id: 3, email: "chino@gmail.com", name: "Chino Montero" },
-  ];
-
+  
   const [players, setPlayers] = useState([
     { id: 1, email: "rrojas@gmail.com", name: "Rolando Rojas", points: 1000, streak: 0, wins: 0, losses: 0 },
     { id: 2, email: "puma@gmail.com", name: "El Puma", points: 1000, streak: 0, wins: 0, losses: 0 },
@@ -27,9 +21,9 @@ export default function RTATennisApp() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const savedPlayers = localStorage.getItem('rta-v4-players');
-    const savedRetos = localStorage.getItem('rta-v4-retos');
-    const savedSession = localStorage.getItem('rta-v4-session');
+    const savedPlayers = localStorage.getItem('rta-v5-players');
+    const savedRetos = localStorage.getItem('rta-v5-retos');
+    const savedSession = localStorage.getItem('rta-v5-session');
     
     if (savedPlayers) setPlayers(JSON.parse(savedPlayers));
     if (savedRetos) setRetos(JSON.parse(savedRetos));
@@ -40,20 +34,17 @@ export default function RTATennisApp() {
 
   useEffect(() => {
     if (mounted) {
-      localStorage.setItem('rta-v4-players', JSON.stringify(players));
-      localStorage.setItem('rta-v4-retos', JSON.stringify(retos));
-      if(activeUser) localStorage.setItem('rta-v4-session', JSON.stringify(activeUser));
+      localStorage.setItem('rta-v5-players', JSON.stringify(players));
+      localStorage.setItem('rta-v5-retos', JSON.stringify(retos));
+      if(activeUser) localStorage.setItem('rta-v5-session', JSON.stringify(activeUser));
     }
   }, [players, retos, activeUser, mounted]);
 
   const handleLogin = (e) => {
     e.preventDefault();
-    const userMatch = masterUsers.find(u => u.email === emailInput.toLowerCase() && passInput === "001122");
-    
+    const userMatch = players.find(u => u.email === emailInput.toLowerCase() && passInput === "001122");
     if (userMatch) {
-      const stats = players.find(p => p.id === userMatch.id);
-      const fullUser = { ...stats, email: userMatch.email }; // Aseguramos que tenga el email
-      setActiveUser(fullUser);
+      setActiveUser(userMatch);
       setError("");
     } else {
       setError("Credenciales incorrectas.");
@@ -61,18 +52,41 @@ export default function RTATennisApp() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('rta-v4-session');
+    localStorage.removeItem('rta-v5-session');
     setActiveUser(null);
   };
 
-  const registrarResultado = (ganadorId, perdedorId) => {
-    if (adminPass !== "chino123") return alert("Clave de resultados incorrecta");
+  const crearReto = (rival) => {
+    // Verificar si alguno ya tiene un reto activo
+    const yaTieneReto = retos.some(r => 
+      r.retadorId === activeUser.id || r.rivalId === activeUser.id || 
+      r.retadorId === rival.id || r.rivalId === rival.id
+    );
+
+    if (yaTieneReto) return alert("Uno de los jugadores ya tiene un reto pendiente.");
+
+    const nuevoReto = {
+      id: Date.now(),
+      retadorId: activeUser.id,
+      retadorName: activeUser.name,
+      rivalId: rival.id,
+      rivalName: rival.name,
+      fecha: new Date().toLocaleDateString()
+    };
+    setRetos([...retos, nuevoReto]);
+    alert(`Reto creado: ${activeUser.name} vs ${rival.name} 🎾`);
+  };
+
+  const resolverReto = (reto, ganadorId) => {
+    if (adminPass !== "chino123") return alert("Clave de comisionado incorrecta");
     
+    const perdedorId = (ganadorId === reto.retadorId) ? reto.rivalId : reto.retadorId;
+
     const newPlayers = players.map(p => {
       if (p.id === ganadorId) {
         let pts = p.points + 25;
         let strk = p.streak + 1;
-        if (strk === 3) { pts += 50; alert("¡🔥 BONUS +50!"); }
+        if (strk === 3) { pts += 50; alert("¡🔥 BONUS DE RACHA +50!"); }
         return { ...p, points: pts, streak: strk, wins: p.wins + 1 };
       }
       if (p.id === perdedorId) return { ...p, streak: 0, losses: p.losses + 1 };
@@ -80,13 +94,12 @@ export default function RTATennisApp() {
     });
 
     setPlayers(newPlayers.sort((a, b) => b.points - a.points));
-    setRetos([]); 
+    setRetos(retos.filter(r => r.id !== reto.id)); // Eliminar el reto resuelto
     setShowAdmin(false);
   };
 
   if (!mounted) return null;
 
-  // Verificación de Admin: Por email o por nombre exacto
   const isAdmin = activeUser && (activeUser.email === adminEmail || activeUser.name === "Chino Montero");
 
   return (
@@ -95,7 +108,7 @@ export default function RTATennisApp() {
       {!activeUser ? (
         <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center p-6">
           <Trophy size={60} className="text-lime-400 mb-4" />
-          <h1 className="text-4xl font-black text-center leading-none mb-10">RTA TENNIS</h1>
+          <h1 className="text-4xl font-black text-center leading-none mb-10 tracking-tighter">RTA TENNIS</h1>
           <form onSubmit={handleLogin} className="w-full max-w-xs space-y-4">
             <input type="email" placeholder="EMAIL" required className="w-full bg-zinc-900 p-4 rounded-2xl border border-white/5 outline-none focus:border-lime-400 font-bold text-xs" value={emailInput} onChange={(e) => setEmailInput(e.target.value)} />
             <input type="password" placeholder="PASSWORD" required className="w-full bg-zinc-900 p-4 rounded-2xl border border-white/5 outline-none focus:border-lime-400 font-bold text-xs" value={passInput} onChange={(e) => setPassInput(e.target.value)} />
@@ -104,7 +117,7 @@ export default function RTATennisApp() {
           </form>
         </div>
       ) : (
-        <div className="max-w-xl mx-auto">
+        <div className="max-w-xl mx-auto pb-20">
           <header className="flex justify-between items-start mb-12">
             <h1 className="text-5xl font-black leading-[0.85] italic">RTA<br/>TENNIS<br/>RANKING</h1>
             <button onClick={handleLogout} className="flex items-center gap-2 bg-zinc-900 px-4 py-2 rounded-full border border-white/5">
@@ -113,46 +126,81 @@ export default function RTATennisApp() {
             </button>
           </header>
 
-          <div className="space-y-4 mb-20">
-            {players.map((p, i) => (
-              <div key={p.id} className={`p-6 rounded-[32px] border-2 transition-all ${p.streak >= 3 ? 'border-orange-500 bg-orange-500/10' : 'border-white/5 bg-zinc-900/50'}`}>
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-4">
-                    <span className="text-5xl font-black italic opacity-10">{i+1}</span>
-                    <div>
-                      <h3 className="text-2xl font-bold leading-none">{p.name} {p.streak >= 3 && '🔥'}</h3>
-                      <p className="text-lime-400 font-mono text-xs mt-1">{p.points} PTS</p>
-                    </div>
+          {/* BANDEJA DE RETOS PARA TODOS LOS USUARIOS */}
+          <section className="mb-12">
+            <h2 className="text-[10px] font-black tracking-widest text-zinc-500 mb-4 flex items-center gap-2"><Calendar size={14}/> RETOS ACTIVOS</h2>
+            {retos.length === 0 ? (
+              <p className="text-zinc-700 text-xs font-bold italic">No hay partidos pendientes...</p>
+            ) : (
+              <div className="space-y-2">
+                {retos.map(r => (
+                  <div key={r.id} className="bg-lime-400 text-black p-5 rounded-2xl flex justify-between items-center shadow-lg animate-pulse">
+                    <p className="text-lg font-black italic">{r.retadorName} <span className="text-xs opacity-50">VS</span> {r.rivalName}</p>
+                    <Swords size={20} />
                   </div>
-                  {activeUser.id !== p.id && (
-                    <button onClick={() => { setRetos([{retador: activeUser.name, rival: p.name}]); alert("Reto enviado"); }} className="bg-white text-black px-5 py-2 rounded-xl font-black text-[10px]">RETAR</button>
-                  )}
-                </div>
+                ))}
               </div>
-            ))}
+            )}
+          </section>
+
+          {/* RANKING */}
+          <div className="space-y-4 mb-20">
+            <h2 className="text-[10px] font-black tracking-widest text-zinc-500 mb-4 flex items-center gap-2"><Trophy size={14}/> CLASIFICACIÓN</h2>
+            {players.map((p, i) => {
+              const tieneReto = retos.some(r => r.retadorId === p.id || r.rivalId === p.id);
+              return (
+                <div key={p.id} className={`p-6 rounded-[32px] border-2 transition-all ${p.streak >= 3 ? 'border-orange-500 bg-orange-500/10' : 'border-white/5 bg-zinc-900/50'}`}>
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                      <span className="text-5xl font-black italic opacity-10">{i+1}</span>
+                      <div>
+                        <h3 className="text-2xl font-bold leading-none">{p.name} {p.streak >= 3 && '🔥'}</h3>
+                        <p className="text-lime-400 font-mono text-xs mt-1">{p.points} PTS</p>
+                      </div>
+                    </div>
+                    {activeUser.id !== p.id && !tieneReto && !retos.some(r => r.retadorId === activeUser.id || r.rivalId === activeUser.id) && (
+                      <button onClick={() => crearReto(p)} className="bg-white text-black px-5 py-2 rounded-xl font-black text-[10px] tracking-widest hover:bg-lime-400 transition-all">RETAR</button>
+                    )}
+                    {tieneReto && (
+                      <span className="text-[8px] font-black text-zinc-500 tracking-widest">OCUPADO</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
-          {/* ESTE ES EL PANEL QUE NO VEÍAS - AHORA CON DOBLE VERIFICACIÓN */}
+          {/* PANEL COMISIONADO: SOLO MUESTRA RETOS PARA DECIDIR GANADOR */}
           {isAdmin && (
-            <section className="bg-zinc-900 border-2 border-lime-400/30 rounded-[40px] p-8 mb-20">
+            <section className="bg-zinc-900 border-2 border-lime-400/30 rounded-[40px] p-8">
               <button onClick={() => setShowAdmin(!showAdmin)} className="w-full flex justify-between items-center text-[10px] font-black tracking-widest">
-                <span className="flex items-center gap-2"><ShieldCheck size={16} className="text-lime-400"/> PANEL COMISIONADO (CHINO)</span>
+                <span className="flex items-center gap-2"><ShieldCheck size={16} className="text-lime-400"/> RESOLVER PARTIDOS (CHINO)</span>
                 {showAdmin ? 'CERRAR' : 'ABRIR'}
               </button>
               
               {showAdmin && (
                 <div className="mt-6 pt-6 border-t border-white/5">
-                  <input type="password" placeholder="CLAVE DE RESULTADOS (chino123)" className="w-full bg-black p-4 rounded-xl mb-6 border border-zinc-800 text-xs text-center font-bold" onChange={(e) => setAdminPass(e.target.value)} />
-                  <div className="grid gap-3">
-                    {players.map(p => (
-                      <button key={p.id} onClick={() => {
-                        const rival = players.find(r => r.id !== p.id);
-                        registrarResultado(p.id, rival.id);
-                      }} className="py-4 border border-white/10 rounded-2xl text-xs font-black hover:bg-lime-400 hover:text-black transition-all uppercase">
-                        GANÓ {p.name}
-                      </button>
-                    ))}
-                  </div>
+                  <input type="password" placeholder="CLAVE CHINO123" className="w-full bg-black p-4 rounded-xl mb-6 border border-zinc-800 text-xs text-center font-bold" onChange={(e) => setAdminPass(e.target.value)} />
+                  
+                  {retos.length === 0 ? (
+                    <p className="text-center text-zinc-500 text-[10px] font-bold tracking-widest">NO HAY RETOS PARA RESOLVER</p>
+                  ) : (
+                    <div className="space-y-6">
+                      {retos.map(r => (
+                        <div key={r.id} className="border border-white/5 p-4 rounded-2xl bg-black/40">
+                          <p className="text-[10px] text-zinc-500 font-bold mb-3 tracking-[0.2em] text-center uppercase">Elegir Ganador de este Reto</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button onClick={() => resolverReto(r, r.retadorId)} className="py-3 bg-zinc-900 rounded-xl text-[10px] font-black hover:bg-lime-400 hover:text-black transition-all">
+                              {r.retadorName}
+                            </button>
+                            <button onClick={() => resolverReto(r, r.rivalId)} className="py-3 bg-zinc-900 rounded-xl text-[10px] font-black hover:bg-lime-400 hover:text-black transition-all">
+                              {r.rivalName}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </section>
